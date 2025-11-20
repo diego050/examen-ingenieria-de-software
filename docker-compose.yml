@@ -1,0 +1,53 @@
+services:
+  # Servicio del Backend (nuestra API Flask)
+  backend:
+    build: . # Construye la imagen usando el Dockerfile en el directorio actual
+    ports:
+      - "5000:5000" # Mapea el puerto 5000 del host al 5000 del contenedor
+    env_file:
+      - .env # Carga las variables de entorno desde el archivo .env
+    volumes:
+      - ./src:/app/src # Monta el código fuente para reflejar cambios sin reconstruir (hot-reload)
+      - ./tests:/app/tests
+      - ./.coveragerc:/app/.coveragerc
+    depends_on:
+      - db # Le dice a Docker que este servicio no debe iniciar hasta que el servicio 'db' esté listo
+
+  # Servicio de la Base de Datos
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: gamarra_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # ----> AÑADE ESTA LÍNEA <----
+      # Monta nuestro script SQL en el directorio de inicialización del contenedor.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      
+  # Servicio del Frontend (Nginx sirviendo el HTML)
+  frontend:
+    build:
+      context: ./frontend # Le dice a Docker que construya usando el Dockerfile de la carpeta /frontend
+    ports:
+      - "8080:80" # Mapea el puerto 8080 del host al 80 del contenedor (donde escucha Nginx)
+    depends_on:
+      - backend # Es buena práctica esperar al backend
+
+  sonarqube:
+    image: sonarqube:lts-community
+    ports:
+      - "9000:9000" # Puerto para la interfaz web de Sonar
+    environment:
+      - sonar.jdbc.username=sonar
+      - sonar.jdbc.password=sonar
+      - sonar.jdbc.url=jdbc:postgresql://db:5432/sonar
+    depends_on:
+      - db
+
+volumes:
+  # Define el volumen nombrado para la persistencia de la base de datos
+  db_data:

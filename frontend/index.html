@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gamarra UE</title>
+</head>
+<body>
+    <h1>Productos de Gamarra</h1>
+    <ul id="lista-productos">
+        <li>Cargando...</li>
+    </ul>
+
+    <script>
+        // Hacemos una llamada a nuestro backend para obtener los productos
+        fetch('http://localhost:5000/productos') // Ojo: esto funciona si corres el navegador en tu máquina.
+            .then(response => response.json())
+            .then(data => {
+                const lista = document.getElementById('lista-productos');
+                lista.innerHTML = ''; // Limpiar la lista
+                data.forEach(producto => {
+                    const item = document.createElement('li');
+                    item.textContent = `${producto.nombre} - S/ ${producto.precio}`;
+                    lista.appendChild(item);
+                });
+            })
+            .catch(error => {
+                console.error('Error al cargar productos:', error);
+                const lista = document.getElementById('lista-productos');
+                lista.innerHTML = '<li>Error al cargar los productos. Asegúrate de que el backend esté funcionando.</li>';
+            });
+    </script>
+</body>
+</html>

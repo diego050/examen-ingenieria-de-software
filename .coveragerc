@@ -1,0 +1,8 @@
+; .coveragerc
+[run]
+source = src
+
+[paths]
+source =
+    src
+    /usr/src/src

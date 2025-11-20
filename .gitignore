@@ -1,0 +1,39 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entornos virtuales
+venv/
+env/
+
+# --- Coverage / pytest ---
+.coverage
+coverage.xml
+htmlcov/
+.cache/
+pytest_cache/
+
+# --- Docker ---
+db_data/
+*.log
+
+# Archivos del contenedor Sonar
+/.scannerwork/
+
+# --- Entradas secretas ---
+.env
+.env.*
+
+# --- Node / Frontend ---
+frontend/node_modules/
+frontend/dist/
+
+# --- IDEs ---
+.vscode/
+.idea/
+
+# --- Otros ---
+*.bak
+*.tmp
