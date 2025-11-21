@@ -2,24 +2,30 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from .models import Producto
+from .models import Personaje, Comentario
 
-# Este es el "puerto" para el repositorio de productos.
-# Define las operaciones que la capa de aplicación puede realizar sobre los productos,
-# sin saber cómo se implementan.
-class ProductRepository(ABC):
+# Puerto para el Repositorio de Personajes
+class PersonajeRepository(ABC):
 
     @abstractmethod
-    def find_by_id(self, producto_id: int) -> Optional[Producto]:
-        """Busca un producto por su ID."""
+    def find_by_id(self, personaje_id: int) -> Optional[Personaje]:
         pass
 
     @abstractmethod
-    def get_all(self) -> List[Producto]:
-        """Obtiene todos los productos."""
+    def get_all(self) -> List[Personaje]:
         pass
 
     @abstractmethod
-    def save(self, producto: Producto) -> Producto:
-        """Guarda o actualiza un producto en el repositorio."""
+    def save(self, personaje: Personaje) -> Personaje:
+        pass
+
+# Puerto para el Repositorio de Comentarios
+class ComentarioRepository(ABC):
+
+    @abstractmethod
+    def find_by_personaje_id(self, personaje_id: int) -> List[Comentario]:
+        pass
+
+    @abstractmethod
+    def save(self, comentario: Comentario) -> Comentario:
         pass

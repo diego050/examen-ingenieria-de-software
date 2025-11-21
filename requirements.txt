@@ -5,3 +5,4 @@ python-dotenv
 Flask-Cors
 pytest
 pytest-cov
+Flask-JWT-Extended

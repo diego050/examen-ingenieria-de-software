@@ -1,33 +1,161 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Gamarra UE</title>
+    <meta charset="UTF-8" />
+    <title>Naruto Character Manager</title>
+    <style>
+        :root {
+            --bg: #0f0f0f;
+            --card: #1a1a1a;
+            --accent: #ff7b00;
+            --text: #f0f0f0;
+        }
+        body {
+            margin: 0;
+            padding: 40px;
+            font-family: "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+        #status {
+            font-size: 18px;
+            margin-bottom: 25px;
+            opacity: 0.8;
+        }
+        #login-form {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 16px;
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.4);
+        }
+        input {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+        }
+        button {
+            padding: 12px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover {
+            transform: scale(1.03);
+            opacity: 0.9;
+        }
+        #lista-personajes {
+            margin-top: 35px;
+            list-style: none;
+            padding: 0;
+            width: 380px;
+        }
+        #lista-personajes li {
+            background: var(--card);
+            margin-bottom: 12px;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Productos de Gamarra</h1>
-    <ul id="lista-productos">
-        <li>Cargando...</li>
-    </ul>
+    <h1>Naruto Character Manager</h1>
+    <h2 id="status">Por favor, inicie sesión</h2>
+
+    <form id="login-form">
+        <label>Usuario:</label>
+        <input type="text" id="username" value="admin" />
+        <label>Contraseña:</label>
+        <input type="password" id="password" value="admin" />
+        <button type="submit">Login</button>
+    </form>
+
+    <ul id="lista-personajes"></ul>
 
     <script>
-        // Hacemos una llamada a nuestro backend para obtener los productos
-        fetch('http://localhost:5000/productos') // Ojo: esto funciona si corres el navegador en tu máquina.
-            .then(response => response.json())
-            .then(data => {
-                const lista = document.getElementById('lista-productos');
-                lista.innerHTML = ''; // Limpiar la lista
-                data.forEach(producto => {
-                    const item = document.createElement('li');
-                    item.textContent = `${producto.nombre} - S/ ${producto.precio}`;
-                    lista.appendChild(item);
+        const loginForm = document.getElementById('login-form');
+        const statusElement = document.getElementById('status');
+        const listaPersonajes = document.getElementById('lista-personajes');
+
+        loginForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('http://localhost:5000/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
                 });
-            })
-            .catch(error => {
-                console.error('Error al cargar productos:', error);
-                const lista = document.getElementById('lista-productos');
-                lista.innerHTML = '<li>Error al cargar los productos. Asegúrate de que el backend esté funcionando.</li>';
-            });
+
+                if (!response.ok) {
+                    throw new Error('Credenciales incorrectas');
+                }
+
+                const data = await response.json();
+                localStorage.setItem('jwt_token', data.access_token);
+                statusElement.textContent = '¡Login exitoso! Cargando personajes...';
+                await fetchPersonajes();
+
+            } catch (error) {
+                statusElement.textContent = 'Error en el login: ' + error.message;
+                listaPersonajes.innerHTML = '';
+            }
+        });
+
+        async function fetchPersonajes() {
+            const token = localStorage.getItem('jwt_token');
+
+            if (!token) {
+                listaPersonajes.innerHTML = '<li>Necesitas iniciar sesión para ver los personajes.</li>';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/personajes', {
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (!response.ok) {
+                    throw new Error('No se pudo obtener la lista. Token inválido o expirado.');
+                }
+
+                const personajes = await response.json();
+                listaPersonajes.innerHTML = '';
+
+                personajes.forEach(p => {
+                    const item = document.createElement('li');
+                    item.textContent = `${p.nombre} (Aldea: ${p.aldea}) - Jutsu: ${p.jutsu_principal}`;
+                    listaPersonajes.appendChild(item);
+                });
+
+            } catch (error) {
+                listaPersonajes.innerHTML = '<li>' + error.message + '</li>';
+            }
+        }
     </script>
 </body>
 </html>

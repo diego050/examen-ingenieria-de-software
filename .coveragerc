@@ -1,8 +1,10 @@
 ; .coveragerc
 [run]
 source = src
+relative_files = True
 
 [paths]
 source =
     src
     /usr/src/src
+    /app/src
