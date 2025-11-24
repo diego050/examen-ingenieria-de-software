@@ -21,7 +21,7 @@ docker run --rm --network examen-ingenieria-de-software_default ^
   -v "%CD%:/usr/src" sonarsource/sonar-scanner-cli ^
   -Dsonar.projectBaseDir=/usr/src ^
   -Dsonar.host.url=http://sonarqube:9000 ^
-  -Dsonar.login=sqa_2342df1659c250e7ff531d4147453e8ee2435131 ^
+  -Dsonar.login=sqp_9acc0a0a6935b88cea16d136abceeb75419cd89d ^
   -Dsonar.sources=src ^
   -Dsonar.python.coverage.reportPaths=coverage.xml ^
   -Dsonar.tests=tests ^
