@@ -1,55 +1,60 @@
 # src/application/services.py
 
 from typing import List
-from src.domain.models import Personaje, Comentario
-from src.domain.ports import PersonajeRepository, ComentarioRepository
+from src.domain.models import Student, Evaluation
+from src.domain.ports import StudentRepository, EvaluationRepository
+from src.application.grade_calculator import GradeCalculator
 
-# Servicio para la lógica de negocio relacionada con Personajes
-class PersonajeService:
-    def __init__(self, repository: PersonajeRepository):
-        self.repository = repository
 
-    def listar_personajes(self) -> List[Personaje]:
-        """Caso de uso: Listar todos los personajes."""
-        return self.repository.get_all()
+class StudentService:
+    def __init__(self, student_repo: StudentRepository, evaluation_repo: EvaluationRepository):
+        self.student_repo = student_repo
+        self.evaluation_repo = evaluation_repo
+        # Use the grade calculator for business rules (defaults from implementation)
+        self.calculator = GradeCalculator()
 
-    def crear_personaje(self, nombre: str, aldea: str, jutsu_principal: str) -> Personaje:
-        """Caso de uso: Crear un nuevo personaje."""
-        if not nombre:
-            raise ValueError("El nombre del personaje no puede estar vacío.")
-        
-        nuevo_personaje = Personaje(
-            id=None, # La base de datos asignará el ID
-            nombre=nombre,
-            aldea=aldea,
-            jutsu_principal=jutsu_principal
-        )
-        return self.repository.save(nuevo_personaje)
+    def listar_estudiantes(self) -> List[Student]:
+        return self.student_repo.get_all()
 
-# Servicio para la lógica de negocio relacionada con Comentarios
-class ComentarioService:
-    def __init__(self, repository: ComentarioRepository, personaje_repo: PersonajeRepository):
-        self.repository = repository
-        self.personaje_repo = personaje_repo
+    def crear_estudiante(self, code: str, nombre: str, attendance: bool = True) -> Student:
+        if not code or not nombre:
+            raise ValueError("El código y el nombre del estudiante no pueden estar vacíos.")
+        nuevo = Student(id=None, code=code, nombre=nombre, attendance=attendance)
+        return self.student_repo.save(nuevo)
 
-    def ver_comentarios_por_personaje(self, personaje_id: int) -> List[Comentario]:
-        """Caso de uso: Ver todos los comentarios de un personaje específico."""
-        return self.repository.find_by_personaje_id(personaje_id)
+    def agregar_evaluacion(self, student_id: int, score: float, weight: float) -> Evaluation:
+        # verify student exists
+        student = self.student_repo.find_by_id(student_id)
+        if not student:
+            raise ValueError("El estudiante no existe.")
+        eval_obj = Evaluation(id=None, student_id=student_id, score=float(score), weight=float(weight))
+        return self.evaluation_repo.save(eval_obj)
 
-    def agregar_comentario(self, personaje_id: int, autor: str, texto: str) -> Comentario:
-        """Caso de uso: Agregar un nuevo comentario a un personaje."""
-        if not texto or not autor:
-            raise ValueError("El autor y el texto del comentario no pueden estar vacíos.")
+    def set_attendance(self, student_id: int, reached: bool) -> Student:
+        student = self.student_repo.find_by_id(student_id)
+        if not student:
+            raise ValueError("El estudiante no existe.")
+        student.attendance = bool(reached)
+        return self.student_repo.save(student)
 
-        # Verificación de negocio: el personaje debe existir para poder comentarlo.
-        personaje = self.personaje_repo.find_by_id(personaje_id)
-        if not personaje:
-            raise ValueError("El personaje no existe.")
+    def calcular_nota_final(self, student_id: int) -> dict:
+        student = self.student_repo.find_by_id(student_id)
+        if not student:
+            raise ValueError("El estudiante no existe.")
 
-        nuevo_comentario = Comentario(
-            id=None,
-            personaje_id=personaje_id,
-            autor=autor,
-            texto=texto
-        )
-        return self.repository.save(nuevo_comentario)
+        evaluations = self.evaluation_repo.find_by_student_id(student_id)
+        # Configure calculator for this student
+        # Clear calculator internal state by creating a temporary one to ensure determinism
+        calc = GradeCalculator()
+        calc.set_all_years_teachers(False)
+
+        # Add evaluations to calculator
+        sid = str(student_id)
+        for ev in evaluations:
+            calc.add_evaluation(sid, ev.score, ev.weight)
+
+        # Set attendance in calculator
+        calc.set_attendance(sid, student.attendance)
+
+        # Compute and return result
+        return calc.calculate_final(sid)

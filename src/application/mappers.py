@@ -1,61 +1,55 @@
 # src/application/mappers.py
 from typing import Dict, Any
-from src.domain.models import Personaje, Comentario
+from src.domain.models import Student, Evaluation
 
 
-class PersonajeMapper:
-    """Maps Personaje domain model to/from DTOs (Data Transfer Objects)."""
+class StudentMapper:
+    """Maps Student domain model to/from DTOs (Data Transfer Objects)."""
 
     @staticmethod
-    def to_dict(personaje: Personaje) -> Dict[str, Any]:
-        """Convert Personaje domain model to dictionary for API responses."""
+    def to_dict(student: Student) -> Dict[str, Any]:
         return {
-            "id": personaje.id,
-            "nombre": personaje.nombre,
-            "aldea": personaje.aldea,
-            "jutsu_principal": personaje.jutsu_principal
+            "id": student.id,
+            "code": student.code,
+            "nombre": student.nombre,
+            "attendance": student.attendance,
         }
 
     @staticmethod
-    def to_personaje(data: Dict[str, Any]) -> Personaje:
-        """Convert API request data to Personaje domain model."""
-        return Personaje(
+    def to_student(data: Dict[str, Any]) -> Student:
+        return Student(
             id=data.get("id"),
+            code=data["code"],
             nombre=data["nombre"],
-            aldea=data["aldea"],
-            jutsu_principal=data["jutsu_principal"]
+            attendance=data.get("attendance", True),
         )
 
     @staticmethod
-    def to_list(personajes: list) -> list:
-        """Convert list of Personaje models to list of dictionaries."""
-        return [PersonajeMapper.to_dict(p) for p in personajes]
+    def to_list(students: list) -> list:
+        return [StudentMapper.to_dict(s) for s in students]
 
 
-class ComentarioMapper:
-    """Maps Comentario domain model to/from DTOs (Data Transfer Objects)."""
+class EvaluationMapper:
+    """Maps Evaluation domain model to/from DTOs."""
 
     @staticmethod
-    def to_dict(comentario: Comentario) -> Dict[str, Any]:
-        """Convert Comentario domain model to dictionary for API responses."""
+    def to_dict(evaluation: Evaluation) -> Dict[str, Any]:
         return {
-            "id": comentario.id,
-            "personaje_id": comentario.personaje_id,
-            "autor": comentario.autor,
-            "texto": comentario.texto
+            "id": evaluation.id,
+            "student_id": evaluation.student_id,
+            "score": evaluation.score,
+            "weight": evaluation.weight,
         }
 
     @staticmethod
-    def to_comentario(data: Dict[str, Any]) -> Comentario:
-        """Convert API request data to Comentario domain model."""
-        return Comentario(
+    def to_evaluation(data: Dict[str, Any]) -> Evaluation:
+        return Evaluation(
             id=data.get("id"),
-            personaje_id=data["personaje_id"],
-            autor=data["autor"],
-            texto=data["texto"]
+            student_id=data["student_id"],
+            score=float(data["score"]),
+            weight=float(data["weight"]),
         )
 
     @staticmethod
-    def to_list(comentarios: list) -> list:
-        """Convert list of Comentario models to list of dictionaries."""
-        return [ComentarioMapper.to_dict(c) for c in comentarios]
+    def to_list(evaluations: list) -> list:
+        return [EvaluationMapper.to_dict(e) for e in evaluations]

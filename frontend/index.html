@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>Naruto Character Manager</title>
+    <title>Student Grade Manager</title>
     <style>
         :root {
             --bg: #0f0f0f;
@@ -60,13 +60,13 @@
             transform: scale(1.03);
             opacity: 0.9;
         }
-        #lista-personajes {
+        #lista-students {
             margin-top: 35px;
             list-style: none;
             padding: 0;
             width: 380px;
         }
-        #lista-personajes li {
+        #lista-students li {
             background: var(--card);
             margin-bottom: 12px;
             padding: 15px;
@@ -80,7 +80,7 @@
     </style>
 </head>
 <body>
-    <h1>Naruto Character Manager</h1>
+    <h1>Student Grade Manager</h1>
     <h2 id="status">Por favor, inicie sesión</h2>
 
     <form id="login-form">
@@ -91,12 +91,21 @@
         <button type="submit">Login</button>
     </form>
 
-    <ul id="lista-personajes"></ul>
+    <ul id="lista-students"></ul>
+
+    <!-- Modal para mostrar la nota final de forma legible -->
+    <div id="grade-modal" style="display:none; position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+        <div id="grade-modal-content" style="background:var(--card); color:var(--text); padding:20px; border-radius:12px; width:420px; max-width:90%; box-shadow:0 0 20px rgba(0,0,0,0.6);">
+            <h3 style="margin-top:0; color:var(--accent);">Nota final</h3>
+            <pre id="grade-content" style="white-space:pre-wrap; font-family:inherit; background:transparent; border:none; color:var(--text);"></pre>
+            <div style="text-align:right; margin-top:12px;"><button id="grade-close" style="padding:8px 12px; border-radius:8px; border:none; background:var(--accent); color:#fff; cursor:pointer;">Cerrar</button></div>
+        </div>
+    </div>
 
     <script>
         const loginForm = document.getElementById('login-form');
         const statusElement = document.getElementById('status');
-        const listaPersonajes = document.getElementById('lista-personajes');
+        const listaStudents = document.getElementById('lista-students');
 
         loginForm.addEventListener('submit', async function(event) {
             event.preventDefault();
@@ -116,46 +125,157 @@
 
                 const data = await response.json();
                 localStorage.setItem('jwt_token', data.access_token);
-                statusElement.textContent = '¡Login exitoso! Cargando personajes...';
-                await fetchPersonajes();
+                    statusElement.textContent = '¡Login exitoso! Cargando estudiantes...';
+                    await fetchStudents();
 
             } catch (error) {
                 statusElement.textContent = 'Error en el login: ' + error.message;
-                listaPersonajes.innerHTML = '';
+                    listaStudents.innerHTML = '';
             }
         });
 
-        async function fetchPersonajes() {
+        async function fetchStudents() {
             const token = localStorage.getItem('jwt_token');
 
-            if (!token) {
-                listaPersonajes.innerHTML = '<li>Necesitas iniciar sesión para ver los personajes.</li>';
-                return;
-            }
-
-            try {
-                const response = await fetch('http://localhost:5000/api/personajes', {
-                    method: 'GET',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-
-                if (!response.ok) {
-                    throw new Error('No se pudo obtener la lista. Token inválido o expirado.');
+                if (!token) {
+                    listaStudents.innerHTML = '<li>Necesitas iniciar sesión para ver los estudiantes.</li>';
+                    return;
                 }
 
-                const personajes = await response.json();
-                listaPersonajes.innerHTML = '';
+                try {
+                    statusElement.textContent = 'Cargando estudiantes...';
+                        const response = await fetch('http://localhost:5000/api/students', {
+                            method: 'GET',
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
 
-                personajes.forEach(p => {
-                    const item = document.createElement('li');
-                    item.textContent = `${p.nombre} (Aldea: ${p.aldea}) - Jutsu: ${p.jutsu_principal}`;
-                    listaPersonajes.appendChild(item);
-                });
+                        if (!response.ok) {
+                            throw new Error('No se pudo obtener la lista. Token inválido o expirado. Código: ' + response.status);
+                        }
 
-            } catch (error) {
-                listaPersonajes.innerHTML = '<li>' + error.message + '</li>';
-            }
+                        const students = await response.json();
+                        listaStudents.innerHTML = '';
+
+                        if (!students || students.length === 0) {
+                            listaStudents.innerHTML = '<li>No hay estudiantes registrados.</li>';
+                            statusElement.textContent = 'No hay estudiantes registrados.';
+                            return;
+                        }
+
+                        students.forEach(s => {
+                            const item = document.createElement('li');
+                            const info = document.createElement('div');
+                            info.textContent = `${s.nombre} (Código: ${s.code}) - Asistencia: ${s.attendance}`;
+
+                            const controls = document.createElement('div');
+                            controls.style.display = 'flex';
+                            controls.style.gap = '8px';
+
+                            const gradeBtn = document.createElement('button');
+                            gradeBtn.textContent = 'Ver nota final';
+                            gradeBtn.onclick = async () => {
+                                try {
+                                    const r = await fetch(`http://localhost:5000/api/students/${s.id}/grade`, {
+                                        method: 'GET',
+                                        headers: { 'Authorization': 'Bearer ' + token }
+                                    });
+                                    const data = await r.json();
+                                    showGradeModal(data);
+                                } catch (e) {
+                                    alert('Error obteniendo la nota: ' + e.message);
+                                }
+                            };
+
+                            const toggleBtn = document.createElement('button');
+                            toggleBtn.textContent = s.attendance ? 'Marcar no asistencia' : 'Marcar asistencia';
+                            toggleBtn.onclick = async () => {
+                                try {
+                                    const r = await fetch(`http://localhost:5000/api/students/${s.id}/attendance`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                                        body: JSON.stringify({ attendance: !s.attendance })
+                                    });
+                                    if (!r.ok) throw new Error('Código ' + r.status);
+                                    await fetchStudents();
+                                } catch (e) {
+                                    statusElement.textContent = 'Error actualizando asistencia: ' + e.message;
+                                }
+                            };
+
+                            const addEvalBtn = document.createElement('button');
+                            addEvalBtn.textContent = 'Agregar evaluación';
+                            addEvalBtn.onclick = async () => {
+                                const score = prompt('Puntuación (ej. 14)');
+                                if (score === null) return;
+                                const weight = prompt('Peso (%) (ej. 50)');
+                                if (weight === null) return;
+                                try {
+                                    const r = await fetch('http://localhost:5000/api/evaluations', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                                        body: JSON.stringify({ student_id: s.id, score: Number(score), weight: Number(weight) })
+                                    });
+                                    if (!r.ok) {
+                                        const err = await r.json();
+                                        throw new Error(err.error || JSON.stringify(err));
+                                    }
+                                    statusElement.textContent = 'Evaluación agregada.';
+                                    await fetchStudents();
+                                } catch (e) {
+                                    statusElement.textContent = 'Error agregando evaluación: ' + e.message;
+                                }
+                            };
+
+                            controls.appendChild(gradeBtn);
+                            controls.appendChild(addEvalBtn);
+                            controls.appendChild(toggleBtn);
+
+                            item.appendChild(info);
+                            item.appendChild(controls);
+                            listaStudents.appendChild(item);
+                        });
+
+                        statusElement.textContent = 'Estudiantes cargados.';
+
+                    statusElement.textContent = 'Estudiantes cargados.';
+
+                } catch (error) {
+                    statusElement.textContent = 'Error cargando estudiantes: ' + error.message;
+                    listaStudents.innerHTML = '<li>' + error.message + '</li>';
+                }
         }
+
+        // Modal helpers
+        const gradeModal = document.getElementById('grade-modal');
+        const gradeContent = document.getElementById('grade-content');
+        const gradeClose = document.getElementById('grade-close');
+
+        function showGradeModal(data) {
+            // Pretty format result
+            let lines = [];
+            if (data.error) {
+                lines.push('Error: ' + data.error);
+            } else {
+                lines.push('Nota final: ' + (data.final_grade ?? data.final ?? 'N/A'));
+                lines.push('Promedio ponderado: ' + (data.weighted_average ?? 'N/A'));
+                lines.push('Penalización por asistencia: ' + (data.attendance_penalty ?? 0));
+                lines.push('Puntos extra: ' + (data.extra_points ?? 0));
+                lines.push('');
+                lines.push('Evaluaciones:');
+                const evals = data.details && data.details.evaluations ? data.details.evaluations : data.evaluations ? data.evaluations : [];
+                evals.forEach((ev, idx) => {
+                    lines.push(`  ${idx + 1}. Puntuación: ${ev.score}, Peso: ${ev.weight}`);
+                });
+            }
+            gradeContent.textContent = lines.join('\n');
+            gradeModal.style.display = 'flex';
+        }
+
+        function hideGradeModal() {
+            gradeModal.style.display = 'none';
+        }
+
+        gradeClose.addEventListener('click', hideGradeModal);
     </script>
 </body>
 </html>

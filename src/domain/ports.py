@@ -2,30 +2,32 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from .models import Personaje, Comentario
+from .models import Student, Evaluation
 
-# Puerto para el Repositorio de Personajes
-class PersonajeRepository(ABC):
+
+# Repository port for Students
+class StudentRepository(ABC):
 
     @abstractmethod
-    def find_by_id(self, personaje_id: int) -> Optional[Personaje]:
+    def find_by_id(self, student_id: int) -> Optional[Student]:
         pass
 
     @abstractmethod
-    def get_all(self) -> List[Personaje]:
+    def get_all(self) -> List[Student]:
         pass
 
     @abstractmethod
-    def save(self, personaje: Personaje) -> Personaje:
+    def save(self, student: Student) -> Student:
         pass
 
-# Puerto para el Repositorio de Comentarios
-class ComentarioRepository(ABC):
+
+# Repository port for Evaluations
+class EvaluationRepository(ABC):
 
     @abstractmethod
-    def find_by_personaje_id(self, personaje_id: int) -> List[Comentario]:
+    def find_by_student_id(self, student_id: int) -> List[Evaluation]:
         pass
 
     @abstractmethod
-    def save(self, comentario: Comentario) -> Comentario:
+    def save(self, evaluation: Evaluation) -> Evaluation:
         pass

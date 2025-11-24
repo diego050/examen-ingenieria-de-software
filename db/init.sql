@@ -1,28 +1,32 @@
 -- db/init.sql
 
--- Creamos la tabla para los personajes
-CREATE TABLE IF NOT EXISTS personajes (
+-- Tabla de estudiantes
+CREATE TABLE IF NOT EXISTS students (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    aldea VARCHAR(100),
-    jutsu_principal VARCHAR(100)
+    code VARCHAR(50) UNIQUE NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    attendance BOOLEAN DEFAULT TRUE
 );
 
--- Creamos la tabla para los comentarios
-CREATE TABLE IF NOT EXISTS comentarios (
+-- Tabla de evaluaciones
+CREATE TABLE IF NOT EXISTS evaluations (
     id SERIAL PRIMARY KEY,
-    personaje_id INTEGER NOT NULL,
-    autor VARCHAR(100) NOT NULL,
-    texto TEXT NOT NULL,
-    -- Creamos una relación con la tabla personajes
-    CONSTRAINT fk_personaje
-        FOREIGN KEY(personaje_id) 
-        REFERENCES personajes(id)
-        ON DELETE CASCADE -- Si un personaje se borra, sus comentarios también.
+    student_id INTEGER NOT NULL,
+    score NUMERIC NOT NULL,
+    weight NUMERIC NOT NULL,
+    CONSTRAINT fk_student
+        FOREIGN KEY(student_id)
+        REFERENCES students(id)
+        ON DELETE CASCADE
 );
 
--- Insertamos algunos datos de prueba para que la aplicación no empiece vacía
-INSERT INTO personajes (nombre, aldea, jutsu_principal) VALUES
-('Naruto Uzumaki', 'Konoha', 'Rasengan'),
-('Sasuke Uchiha', 'Konoha', 'Chidori'),
-('Gaara', 'Sunagakure', 'Ataúd de Atadura de Arena');
+-- Datos iniciales de ejemplo
+INSERT INTO students (code, nombre, attendance) VALUES
+('S001', 'Juan Perez', true),
+('S002', 'María García', true),
+('S003', 'Luis Rodríguez', false);
+
+INSERT INTO evaluations (student_id, score, weight) VALUES
+(1, 14, 50),
+(1, 16, 50),
+(2, 18, 100);

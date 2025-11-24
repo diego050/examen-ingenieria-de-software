@@ -1,253 +1,86 @@
-# tests/test_application.py
 import pytest
-from src.application.services import PersonajeService, ComentarioService
-from src.application.mappers import PersonajeMapper, ComentarioMapper
-from src.domain.models import Personaje, Comentario
-from src.domain.ports import PersonajeRepository, ComentarioRepository
+from src.application.services import StudentService
+from src.application.mappers import StudentMapper, EvaluationMapper
+from src.domain.models import Student, Evaluation
+from src.domain.ports import StudentRepository, EvaluationRepository
 
-# 1. El "Repositorio Falso" para Personajes.
-class FakePersonajeRepository(PersonajeRepository):
-    def __init__(self, personajes=None):
-        self._personajes = personajes or []
-        self._id_counter = 1
+
+class FakeStudentRepository(StudentRepository):
+    def __init__(self, students=None):
+        self._students = students or []
+        self._id = 1
 
     def get_all(self):
-        return self._personajes
+        return self._students
 
-    def save(self, personaje):
-        if personaje.id is None:
-            personaje.id = self._id_counter
-            self._id_counter += 1
-        self._personajes.append(personaje)
-        return personaje
+    def save(self, student):
+        if student.id is None:
+            student.id = self._id
+            self._id += 1
+            self._students.append(student)
+        else:
+            # update
+            for i, s in enumerate(self._students):
+                if s.id == student.id:
+                    self._students[i] = student
+                    break
+        return student
 
-    def find_by_id(self, personaje_id):
-        return next((p for p in self._personajes if p.id == personaje_id), None)
+    def find_by_id(self, student_id):
+        return next((s for s in self._students if s.id == student_id), None)
 
-# 2. El "Repositorio Falso" para Comentarios.
-class FakeComentarioRepository(ComentarioRepository):
-    def __init__(self, comentarios=None):
-        self._comentarios = comentarios or []
-        self._id_counter = 1
 
-    def find_by_personaje_id(self, personaje_id):
-        return [c for c in self._comentarios if c.personaje_id == personaje_id]
+class FakeEvaluationRepository(EvaluationRepository):
+    def __init__(self, evaluations=None):
+        self._evaluations = evaluations or []
+        self._id = 1
 
-    def save(self, comentario):
-        if comentario.id is None:
-            comentario.id = self._id_counter
-            self._id_counter += 1
-        self._comentarios.append(comentario)
-        return comentario
+    def find_by_student_id(self, student_id):
+        return [e for e in self._evaluations if e.student_id == student_id]
 
-# ===== Tests para PersonajeService =====
+    def save(self, evaluation):
+        if evaluation.id is None:
+            evaluation.id = self._id
+            self._id += 1
+            self._evaluations.append(evaluation)
+        return evaluation
 
-def test_listar_personajes_devuelve_lista_vacia_si_no_hay_personajes():
-    # Arrange
-    repo = FakePersonajeRepository()
-    service = PersonajeService(repo)
 
-    # Act
-    personajes = service.listar_personajes()
+def test_student_lifecycle_and_grade():
+    student_repo = FakeStudentRepository()
+    eval_repo = FakeEvaluationRepository()
+    service = StudentService(student_repo, eval_repo)
 
-    # Assert
-    assert personajes == []
+    # Create student
+    s = service.crear_estudiante('CODE1', 'Test Student', attendance=True)
+    assert s.id is not None
 
-def test_listar_personajes_devuelve_personajes_existentes():
-    # Arrange
-    p1 = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
-    p2 = Personaje(id=2, nombre="Sasuke", aldea="Konoha", jutsu_principal="Chidori")
-    repo = FakePersonajeRepository([p1, p2])
-    service = PersonajeService(repo)
+    # Add evaluations
+    e1 = service.agregar_evaluacion(s.id, 12, 50)
+    e2 = service.agregar_evaluacion(s.id, 18, 50)
+    assert e1.id is not None and e2.id is not None
 
-    # Act
-    personajes = service.listar_personajes()
+    # Calculate grade
+    res = service.calcular_nota_final(s.id)
+    assert res['final_grade'] == 15.0
 
-    # Assert
-    assert len(personajes) == 2
-    assert personajes[0].nombre == "Naruto"
-    assert personajes[1].nombre == "Sasuke"
 
-def test_crear_personaje_con_nombre_vacio_lanza_error():
-    # Arrange
-    repo = FakePersonajeRepository()
-    service = PersonajeService(repo)
+def test_set_attendance_updates_student():
+    student_repo = FakeStudentRepository()
+    eval_repo = FakeEvaluationRepository()
+    service = StudentService(student_repo, eval_repo)
 
-    # Act & Assert
-    with pytest.raises(ValueError, match="El nombre del personaje no puede estar vacío."):
-        service.crear_personaje("", "Konoha", "Rasengan")
+    s = service.crear_estudiante('CODE2', 'Alumno', attendance=True)
+    service.set_attendance(s.id, False)
+    updated = student_repo.find_by_id(s.id)
+    assert updated.attendance is False
 
-def test_crear_personaje_exitosamente():
-    # Arrange
-    repo = FakePersonajeRepository()
-    service = PersonajeService(repo)
 
-    # Act
-    personaje = service.crear_personaje("Naruto", "Konoha", "Rasengan")
+def test_mappers():
+    s = Student(id=1, code='C1', nombre='Al', attendance=True)
+    sd = StudentMapper.to_dict(s)
+    assert sd['code'] == 'C1'
 
-    # Assert
-    assert personaje.nombre == "Naruto"
-    assert personaje.aldea == "Konoha"
-    assert personaje.jutsu_principal == "Rasengan"
-    assert personaje.id is not None
-    assert len(repo.get_all()) == 1
-
-# ===== Tests para ComentarioService =====
-
-def test_ver_comentarios_por_personaje_vacio():
-    # Arrange
-    personaje_repo = FakePersonajeRepository()
-    comentario_repo = FakeComentarioRepository()
-    service = ComentarioService(comentario_repo, personaje_repo)
-
-    # Act
-    comentarios = service.ver_comentarios_por_personaje(1)
-
-    # Assert
-    assert comentarios == []
-
-def test_ver_comentarios_por_personaje_existentes():
-    # Arrange
-    personaje_repo = FakePersonajeRepository()
-    c1 = Comentario(id=1, personaje_id=1, autor="Fan1", texto="¡Naruto es el mejor!")
-    c2 = Comentario(id=2, personaje_id=1, autor="Fan2", texto="¡Increíble!")
-    comentario_repo = FakeComentarioRepository([c1, c2])
-    service = ComentarioService(comentario_repo, personaje_repo)
-
-    # Act
-    comentarios = service.ver_comentarios_por_personaje(1)
-
-    # Assert
-    assert len(comentarios) == 2
-    assert comentarios[0].autor == "Fan1"
-
-def test_agregar_comentario_exitosamente():
-    # Arrange
-    p1 = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
-    personaje_repo = FakePersonajeRepository([p1])
-    comentario_repo = FakeComentarioRepository()
-    service = ComentarioService(comentario_repo, personaje_repo)
-
-    # Act
-    comentario = service.agregar_comentario(1, "Fan1", "¡Naruto es el mejor!")
-
-    # Assert
-    assert comentario.autor == "Fan1"
-    assert comentario.texto == "¡Naruto es el mejor!"
-    assert comentario.personaje_id == 1
-
-def test_agregar_comentario_con_autor_vacio_lanza_error():
-    # Arrange
-    p1 = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
-    personaje_repo = FakePersonajeRepository([p1])
-    comentario_repo = FakeComentarioRepository()
-    service = ComentarioService(comentario_repo, personaje_repo)
-
-    # Act & Assert
-    with pytest.raises(ValueError, match="El autor y el texto del comentario no pueden estar vacíos."):
-        service.agregar_comentario(1, "", "texto")
-
-def test_agregar_comentario_con_texto_vacio_lanza_error():
-    # Arrange
-    p1 = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
-    personaje_repo = FakePersonajeRepository([p1])
-    comentario_repo = FakeComentarioRepository()
-    service = ComentarioService(comentario_repo, personaje_repo)
-
-    # Act & Assert
-    with pytest.raises(ValueError, match="El autor y el texto del comentario no pueden estar vacíos."):
-        service.agregar_comentario(1, "Fan1", "")
-
-def test_agregar_comentario_a_personaje_inexistente_lanza_error():
-    # Arrange
-    personaje_repo = FakePersonajeRepository()
-    comentario_repo = FakeComentarioRepository()
-    service = ComentarioService(comentario_repo, personaje_repo)
-
-    # Act & Assert
-    with pytest.raises(ValueError, match="El personaje no existe."):
-        service.agregar_comentario(999, "Fan1", "texto")
-
-# ===== Tests para PersonajeMapper =====
-
-def test_personaje_mapper_to_dict():
-    # Arrange
-    personaje = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
-
-    # Act
-    resultado = PersonajeMapper.to_dict(personaje)
-
-    # Assert
-    assert resultado["id"] == 1
-    assert resultado["nombre"] == "Naruto"
-    assert resultado["aldea"] == "Konoha"
-    assert resultado["jutsu_principal"] == "Rasengan"
-
-def test_personaje_mapper_to_personaje():
-    # Arrange
-    data = {"id": 1, "nombre": "Sasuke", "aldea": "Konoha", "jutsu_principal": "Chidori"}
-
-    # Act
-    personaje = PersonajeMapper.to_personaje(data)
-
-    # Assert
-    assert personaje.id == 1
-    assert personaje.nombre == "Sasuke"
-    assert personaje.aldea == "Konoha"
-    assert personaje.jutsu_principal == "Chidori"
-
-def test_personaje_mapper_to_list():
-    # Arrange
-    p1 = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
-    p2 = Personaje(id=2, nombre="Sasuke", aldea="Konoha", jutsu_principal="Chidori")
-    personajes = [p1, p2]
-
-    # Act
-    resultado = PersonajeMapper.to_list(personajes)
-
-    # Assert
-    assert len(resultado) == 2
-    assert resultado[0]["nombre"] == "Naruto"
-    assert resultado[1]["nombre"] == "Sasuke"
-
-# ===== Tests para ComentarioMapper =====
-
-def test_comentario_mapper_to_dict():
-    # Arrange
-    comentario = Comentario(id=1, personaje_id=1, autor="Fan1", texto="¡Genial!")
-
-    # Act
-    resultado = ComentarioMapper.to_dict(comentario)
-
-    # Assert
-    assert resultado["id"] == 1
-    assert resultado["personaje_id"] == 1
-    assert resultado["autor"] == "Fan1"
-    assert resultado["texto"] == "¡Genial!"
-
-def test_comentario_mapper_to_comentario():
-    # Arrange
-    data = {"id": 1, "personaje_id": 1, "autor": "Fan2", "texto": "¡Excelente!"}
-
-    # Act
-    comentario = ComentarioMapper.to_comentario(data)
-
-    # Assert
-    assert comentario.id == 1
-    assert comentario.personaje_id == 1
-    assert comentario.autor == "Fan2"
-    assert comentario.texto == "¡Excelente!"
-
-def test_comentario_mapper_to_list():
-    # Arrange
-    c1 = Comentario(id=1, personaje_id=1, autor="Fan1", texto="¡Genial!")
-    c2 = Comentario(id=2, personaje_id=1, autor="Fan2", texto="¡Excelente!")
-    comentarios = [c1, c2]
-
-    # Act
-    resultado = ComentarioMapper.to_list(comentarios)
-
-    # Assert
-    assert len(resultado) == 2
-    assert resultado[0]["autor"] == "Fan1"
-    assert resultado[1]["autor"] == "Fan2"
+    e = Evaluation(id=1, student_id=1, score=14.0, weight=100)
+    ed = EvaluationMapper.to_dict(e)
+    assert ed['score'] == 14.0

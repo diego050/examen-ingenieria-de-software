@@ -2,72 +2,83 @@
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import Table, Column, Integer, String, Float, MetaData, select, Text, ForeignKey
-from src.domain.models import Personaje as DomainPersonaje, Comentario as DomainComentario
-from src.domain.ports import PersonajeRepository, ComentarioRepository
+from sqlalchemy import Table, Column, Integer, String, Float, MetaData, select, Boolean, ForeignKey
+from src.domain.models import Student as DomainStudent, Evaluation as DomainEvaluation
+from src.domain.ports import StudentRepository, EvaluationRepository
 
-# Mapeo de las tablas de la base de datos (detalle de infraestructura)
+# Database table mappings
 metadata = MetaData()
 
-personajes_table = Table(
-    'personajes', metadata,
+students_table = Table(
+    'students', metadata,
     Column('id', Integer, primary_key=True),
-    Column('nombre', String(100)),
-    Column('aldea', String(100)),
-    Column('jutsu_principal', String(100))
+    Column('code', String(50), unique=True),
+    Column('nombre', String(150)),
+    Column('attendance', Boolean, default=True)
 )
 
-comentarios_table = Table(
-    'comentarios', metadata,
+evaluations_table = Table(
+    'evaluations', metadata,
     Column('id', Integer, primary_key=True),
-    Column('personaje_id', Integer, ForeignKey('personajes.id')),
-    Column('autor', String(100)),
-    Column('texto', Text)
+    Column('student_id', Integer, ForeignKey('students.id')),
+    Column('score', Float),
+    Column('weight', Float)
 )
 
-# Implementación del Repositorio de Personajes
-class SQLAlchemyPersonajeRepository(PersonajeRepository):
+
+class SQLAlchemyStudentRepository(StudentRepository):
     def __init__(self, session: Session):
         self.session = session
 
-    def get_all(self) -> list[DomainPersonaje]:
-        stmt = select(personajes_table)
+    def get_all(self) -> list[DomainStudent]:
+        stmt = select(students_table)
         rows = self.session.execute(stmt).all()
-        return [DomainPersonaje(**row._asdict()) for row in rows]
+        return [DomainStudent(**row._asdict()) for row in rows]
 
-    def save(self, personaje: DomainPersonaje) -> DomainPersonaje:
-        stmt = personajes_table.insert().values(
-            nombre=personaje.nombre,
-            aldea=personaje.aldea,
-            jutsu_principal=personaje.jutsu_principal
-        )
-        result = self.session.execute(stmt)
-        self.session.commit()
-        personaje.id = result.inserted_primary_key[0]
-        return personaje
-    
-    def find_by_id(self, personaje_id: int) -> Optional[DomainPersonaje]:
-        stmt = select(personajes_table).where(personajes_table.c.id == personaje_id)
+    def save(self, student: DomainStudent) -> DomainStudent:
+        # If student has no id, perform INSERT, otherwise UPDATE existing row.
+        if getattr(student, 'id', None) is None:
+            stmt = students_table.insert().values(
+                code=student.code,
+                nombre=student.nombre,
+                attendance=student.attendance
+            )
+            result = self.session.execute(stmt)
+            self.session.commit()
+            student.id = result.inserted_primary_key[0]
+            return student
+        else:
+            stmt = students_table.update().where(students_table.c.id == student.id).values(
+                code=student.code,
+                nombre=student.nombre,
+                attendance=student.attendance
+            )
+            self.session.execute(stmt)
+            self.session.commit()
+            return student
+
+    def find_by_id(self, student_id: int) -> Optional[DomainStudent]:
+        stmt = select(students_table).where(students_table.c.id == student_id)
         row = self.session.execute(stmt).first()
-        return DomainPersonaje(**row._asdict()) if row else None
+        return DomainStudent(**row._asdict()) if row else None
 
-# Implementación del Repositorio de Comentarios
-class SQLAlchemyComentarioRepository(ComentarioRepository):
+
+class SQLAlchemyEvaluationRepository(EvaluationRepository):
     def __init__(self, session: Session):
         self.session = session
-    
-    def find_by_personaje_id(self, personaje_id: int) -> list[DomainComentario]:
-        stmt = select(comentarios_table).where(comentarios_table.c.personaje_id == personaje_id)
-        rows = self.session.execute(stmt).all()
-        return [DomainComentario(**row._asdict()) for row in rows]
 
-    def save(self, comentario: DomainComentario) -> DomainComentario:
-        stmt = comentarios_table.insert().values(
-            personaje_id=comentario.personaje_id,
-            autor=comentario.autor,
-            texto=comentario.texto
+    def find_by_student_id(self, student_id: int) -> list[DomainEvaluation]:
+        stmt = select(evaluations_table).where(evaluations_table.c.student_id == student_id)
+        rows = self.session.execute(stmt).all()
+        return [DomainEvaluation(**row._asdict()) for row in rows]
+
+    def save(self, evaluation: DomainEvaluation) -> DomainEvaluation:
+        stmt = evaluations_table.insert().values(
+            student_id=evaluation.student_id,
+            score=evaluation.score,
+            weight=evaluation.weight
         )
         result = self.session.execute(stmt)
         self.session.commit()
-        comentario.id = result.inserted_primary_key[0]
-        return comentario
+        evaluation.id = result.inserted_primary_key[0]
+        return evaluation

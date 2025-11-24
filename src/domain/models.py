@@ -1,18 +1,18 @@
 from dataclasses import dataclass
 
-# Usamos dataclass para definir nuestras entidades de negocio.
-# Son simples contenedores de datos, sin lógica.
+# Domain models adapted to the exam: Student and Evaluation
 
 @dataclass
-class Personaje:
+class Student:
     id: int
+    code: str
     nombre: str
-    aldea: str
-    jutsu_principal: str
+    attendance: bool
+
 
 @dataclass
-class Comentario:
+class Evaluation:
     id: int
-    personaje_id: int
-    autor: str
-    texto: str
+    student_id: int
+    score: float
+    weight: float

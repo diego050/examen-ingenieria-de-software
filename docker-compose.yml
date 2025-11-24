@@ -11,7 +11,8 @@ services:
       - ./tests:/app/tests
       - ./.coveragerc:/app/.coveragerc
     depends_on:
-      - db # Le dice a Docker que este servicio no debe iniciar hasta que el servicio 'db' esté listo
+      db:
+        condition: service_healthy # Espera a que el servicio 'db' pase su healthcheck
 
   # Servicio de la Base de Datos
   db:
@@ -27,6 +28,12 @@ services:
       # ----> AÑADE ESTA LÍNEA <----
       # Monta nuestro script SQL en el directorio de inicialización del contenedor.
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d gamarra_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
       
   # Servicio del Frontend (Nginx sirviendo el HTML)
   frontend:
