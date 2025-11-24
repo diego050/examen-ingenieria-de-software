@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from src.application.services import PersonajeService, ComentarioService
+from src.application.mappers import PersonajeMapper, ComentarioMapper
 from src.infrastructure.adapters.database import SQLAlchemyPersonajeRepository, SQLAlchemyComentarioRepository
 from src.infrastructure.config import SessionLocal
 
@@ -34,7 +35,7 @@ def get_comentario_service():
 def listar_personajes_endpoint():
     service = get_personaje_service()
     personajes = service.listar_personajes()
-    return jsonify([p.__dict__ for p in personajes])
+    return jsonify(PersonajeMapper.to_list(personajes))
 
 @app.route('/api/personajes', methods=['POST'])
 @jwt_required() 
@@ -47,7 +48,7 @@ def crear_personaje_endpoint():
             aldea=datos['aldea'],
             jutsu_principal=datos['jutsu_principal']
         )
-        return jsonify(nuevo_personaje.__dict__), 201
+        return jsonify(PersonajeMapper.to_dict(nuevo_personaje)), 201
     except (ValueError, KeyError) as e:
         return jsonify({"error": str(e)}), 400
 
@@ -62,7 +63,7 @@ def agregar_comentario_endpoint():
             autor=datos['autor'],
             texto=datos['texto']
         )
-        return jsonify(nuevo_comentario.__dict__), 201
+        return jsonify(ComentarioMapper.to_dict(nuevo_comentario)), 201
     except (ValueError, KeyError) as e:
         return jsonify({"error": str(e)}), 400
 
@@ -70,7 +71,7 @@ def agregar_comentario_endpoint():
 def ver_comentarios_endpoint(personaje_id):
     service = get_comentario_service()
     comentarios = service.ver_comentarios_por_personaje(personaje_id)
-    return jsonify([c.__dict__ for c in comentarios])
+    return jsonify(ComentarioMapper.to_list(comentarios))
 
 @app.route('/api/login', methods=['POST'])
 def login():

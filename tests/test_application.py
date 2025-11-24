@@ -1,6 +1,7 @@
 # tests/test_application.py
 import pytest
 from src.application.services import PersonajeService, ComentarioService
+from src.application.mappers import PersonajeMapper, ComentarioMapper
 from src.domain.models import Personaje, Comentario
 from src.domain.ports import PersonajeRepository, ComentarioRepository
 
@@ -166,3 +167,87 @@ def test_agregar_comentario_a_personaje_inexistente_lanza_error():
     # Act & Assert
     with pytest.raises(ValueError, match="El personaje no existe."):
         service.agregar_comentario(999, "Fan1", "texto")
+
+# ===== Tests para PersonajeMapper =====
+
+def test_personaje_mapper_to_dict():
+    # Arrange
+    personaje = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
+
+    # Act
+    resultado = PersonajeMapper.to_dict(personaje)
+
+    # Assert
+    assert resultado["id"] == 1
+    assert resultado["nombre"] == "Naruto"
+    assert resultado["aldea"] == "Konoha"
+    assert resultado["jutsu_principal"] == "Rasengan"
+
+def test_personaje_mapper_to_personaje():
+    # Arrange
+    data = {"id": 1, "nombre": "Sasuke", "aldea": "Konoha", "jutsu_principal": "Chidori"}
+
+    # Act
+    personaje = PersonajeMapper.to_personaje(data)
+
+    # Assert
+    assert personaje.id == 1
+    assert personaje.nombre == "Sasuke"
+    assert personaje.aldea == "Konoha"
+    assert personaje.jutsu_principal == "Chidori"
+
+def test_personaje_mapper_to_list():
+    # Arrange
+    p1 = Personaje(id=1, nombre="Naruto", aldea="Konoha", jutsu_principal="Rasengan")
+    p2 = Personaje(id=2, nombre="Sasuke", aldea="Konoha", jutsu_principal="Chidori")
+    personajes = [p1, p2]
+
+    # Act
+    resultado = PersonajeMapper.to_list(personajes)
+
+    # Assert
+    assert len(resultado) == 2
+    assert resultado[0]["nombre"] == "Naruto"
+    assert resultado[1]["nombre"] == "Sasuke"
+
+# ===== Tests para ComentarioMapper =====
+
+def test_comentario_mapper_to_dict():
+    # Arrange
+    comentario = Comentario(id=1, personaje_id=1, autor="Fan1", texto="¡Genial!")
+
+    # Act
+    resultado = ComentarioMapper.to_dict(comentario)
+
+    # Assert
+    assert resultado["id"] == 1
+    assert resultado["personaje_id"] == 1
+    assert resultado["autor"] == "Fan1"
+    assert resultado["texto"] == "¡Genial!"
+
+def test_comentario_mapper_to_comentario():
+    # Arrange
+    data = {"id": 1, "personaje_id": 1, "autor": "Fan2", "texto": "¡Excelente!"}
+
+    # Act
+    comentario = ComentarioMapper.to_comentario(data)
+
+    # Assert
+    assert comentario.id == 1
+    assert comentario.personaje_id == 1
+    assert comentario.autor == "Fan2"
+    assert comentario.texto == "¡Excelente!"
+
+def test_comentario_mapper_to_list():
+    # Arrange
+    c1 = Comentario(id=1, personaje_id=1, autor="Fan1", texto="¡Genial!")
+    c2 = Comentario(id=2, personaje_id=1, autor="Fan2", texto="¡Excelente!")
+    comentarios = [c1, c2]
+
+    # Act
+    resultado = ComentarioMapper.to_list(comentarios)
+
+    # Assert
+    assert len(resultado) == 2
+    assert resultado[0]["autor"] == "Fan1"
+    assert resultado[1]["autor"] == "Fan2"
